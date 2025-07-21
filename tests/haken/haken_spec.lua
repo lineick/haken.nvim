@@ -34,7 +34,7 @@ describe("haken", function()
       local commands = vim.api.nvim_get_commands({})
       assert.is_not_nil(commands['AddHaken'])
       assert.is_not_nil(commands['ShowHakens'])
-      assert.is_not_nil(commands['ClearHakens'])
+      assert.is_not_nil(commands['ClearAllHakens'])
     end)
   end)
 
@@ -53,10 +53,13 @@ describe("haken", function()
       core.add_haken()
 
       -- Check that entry was added
-      local entries = core.show_hakens()
-      assert.equals(1, #entries)
-      assert.equals(1, entries[1].lnum)
-      assert.equals(0, entries[1].col)
+      local current_win_id = vim.api.nvim_get_current_win()
+      local hakens = core.show_hakens()
+      local win_hakens = hakens[current_win_id]
+
+      assert.equals(1, #win_hakens)
+      assert.equals(1, win_hakens[1].lnum)
+      assert.equals(0, win_hakens[1].col)
     end)
 
     it("should not add duplicate entries at same position", function()
@@ -69,8 +72,11 @@ describe("haken", function()
       core.add_haken()
 
       -- Should still only have one entry
-      local entries = core.show_hakens()
-      assert.equals(1, #entries)
+      local current_win_id = vim.api.nvim_get_current_win()
+      local hakens = core.show_hakens()
+      local win_hakens = hakens[current_win_id]
+
+      assert.equals(1, #win_hakens)
     end)
 
     it("should add multiple entries at different positions", function()
@@ -83,11 +89,14 @@ describe("haken", function()
       vim.api.nvim_win_set_cursor(0, { 5, 0 })
       core.add_haken()
 
+      local current_win_id = vim.api.nvim_get_current_win()
+      local hakens = core.show_hakens()
+      local win_hakens = hakens[current_win_id]
+
       -- Should have two entries
-      local entries = core.show_hakens()
-      assert.equals(2, #entries)
-      assert.equals(1, entries[1].lnum)
-      assert.equals(5, entries[2].lnum)
+      assert.equals(2, #win_hakens)
+      assert.equals(1, win_hakens[1].lnum)
+      assert.equals(5, win_hakens[2].lnum)
     end)
   end)
 
@@ -101,25 +110,31 @@ describe("haken", function()
       vim.api.nvim_win_set_cursor(0, { 5, 0 })
       core.add_haken()
 
+      local current_win_id = vim.api.nvim_get_current_win()
+      local hakens = core.show_hakens()
+      local win_hakens = hakens[current_win_id]
+
       -- Verify entries exist
-      local entries = core.show_hakens()
-      assert.equals(2, #entries)
+      assert.equals(2, #win_hakens)
 
       -- Clear entries
-      core.clear_hakens()
+      core.clear_hakens(current_win_id)
 
       -- Verify entries are cleared
-      entries = core.show_hakens()
-      assert.equals(0, #entries)
+      hakens = core.show_hakens()
+      win_hakens = hakens[current_win_id]
+      assert.equals(0, #win_hakens)
     end)
   end)
 
   describe("show_hakens", function()
     it("should return empty table initially", function()
       haken.setup()
-      local entries = core.show_hakens()
-      assert.equals(0, #entries)
-      assert.is_table(entries)
+      local current_win_id = vim.api.nvim_get_current_win()
+      local hakens = core.show_hakens()
+      local win_hakens = hakens[current_win_id]
+      assert.equals(0, #(win_hakens or {}))
+      assert.is_table(win_hakens or {})
     end)
   end)
 end)

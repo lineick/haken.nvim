@@ -3,9 +3,12 @@ local core = require("haken.core")
 
 ---@class Config
 ---@field column_sensitive boolean
+---@field clear_jumplists boolean
+---@field clear_on_new_window? boolean
 local config = {
   column_sensitive = false,
-  clear_jumplist = true,
+  clear_jumplists = false,
+  clear_on_new_window = false,
 }
 
 ---@class Haken
@@ -21,10 +24,10 @@ M.setup = function(args)
   -- reset jumplist on startup
   args = args or {}
 
-  if args.clear_jumplist == true then
+  if args.clear_jumplists == true then
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
-        vim.cmd("clearjumps")
+        vim.cmd("bufdo clearjumps")
       end,
     })
   end

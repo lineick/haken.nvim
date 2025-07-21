@@ -6,13 +6,19 @@ local M = {}
 local utils = require("haken.utils")
 
 -- Table to store haken positions
----@type HakenPosition[]
+---@type table<integer, HakenPosition[]>
 local hakens = {}
 
 -- Find the most recent haken in the jumplist
+---@param win_id integer
 ---@return integer|nil
-local function find_last_haken_index()
-  if #hakens == 0 then
+local function find_last_haken_index(win_id)
+  if not hakens[win_id] then
+    hakens[win_id] = {}
+  end
+  local win_hakens = hakens[win_id]
+
+  if #win_hakens == 0 then
     return nil
   end
 
@@ -42,8 +48,8 @@ local function find_last_haken_index()
 
   -- As hakens are kicked out as soon as they are not in the jumplist anymore,
   -- The #hakens is never larger than the jumplist length (100 by default)
-  for i = #hakens, 1, -1 do
-    local haken_pos = hakens[i]
+  for i = #win_hakens, 1, -1 do
+    local haken_pos = win_hakens[i]
     local key = utils.position_to_key(haken_pos)
     -- Check if this haken exists in the jumplist
     if jump_hashtable[key] then
@@ -52,7 +58,7 @@ local function find_last_haken_index()
       end
     else
       -- No matching entries found for this haken, so remove it
-      table.remove(hakens, i)
+      table.remove(win_hakens, i)
     end
   end
 
@@ -101,19 +107,29 @@ end
 
 -- Add haken
 function M.add_haken()
+  -- Save view state to restore at function end
+  local view_state = vim.fn.winsaveview()
+  local win_id = vim.api.nvim_get_current_win()
+
+  if not hakens[win_id] then
+    hakens[win_id] = {}
+  end
+  local win_hakens = hakens[win_id]
+
+  -- save current position and window
   local current_pos = utils.get_current_position()
 
   -- Check if current position is same as last haken
-  if #hakens > 0 then
-    local last_manual = hakens[#hakens]
-    if utils.positions_equal(current_pos, last_manual, not M.column_sensitive) then
+  if #win_hakens > 0 then
+    local last_manual = win_hakens[#win_hakens]
+    if utils.positions_equal(current_pos, last_manual, not M.config.column_sensitive) then
       print("haken not added - position unchanged")
       return
     end
   end
 
   -- Check if a previous haken exists in the jumplist
-  local last_manual_index = find_last_haken_index()
+  local last_manual_index = find_last_haken_index(win_id)
 
   if last_manual_index then
     -- Remove all entries after the last haken
@@ -124,37 +140,58 @@ function M.add_haken()
   vim.cmd("normal! m`")
 
   -- Track this as a haken
-  table.insert(hakens, current_pos)
+  table.insert(win_hakens, current_pos)
 
   local filename = current_pos.filename ~= "" and vim.fn.fnamemodify(current_pos.filename, ":t") or "[No Name]"
-  print("haken added: " .. filename .. ":" .. current_pos.lnum)
+  print("haken added: " .. filename .. ":" .. current_pos.lnum .. ":" .. current_pos.col)
+  --restore view state (for multiple windows)
+  vim.fn.winrestview(view_state)
 end
 
 -- Clear manual entries
-function M.clear_hakens()
-  hakens = {}
+--@param win_id? integer
+function M.clear_hakens(win_id)
+  if not win_id then
+    -- Clear all hakens
+    hakens = {}
+    return
+  end
+  hakens[win_id] = {}
 end
 
 ---@return HakenPosition[]
 function M.show_hakens()
-  if #hakens == 0 then
-    print("No manual jumplist entries")
+  if vim.tbl_isempty(hakens) then
+    print("No manual jumplist entries found")
     return hakens
   end
-
-  print("Manual jumplist entries:")
-  for i, haken in ipairs(hakens) do
-    local filename = haken.filename ~= "" and vim.fn.fnamemodify(haken.filename, ":t") or "[No Name]"
-    print(string.format("%d: %s:%d:%d", i, filename, haken.lnum, haken.col))
+  for win_id, win_hakens in pairs(hakens) do
+    print(string.format("Window %d:", win_id))
+    for i, haken in ipairs(win_hakens) do
+      local filename = haken.filename ~= "" and vim.fn.fnamemodify(haken.filename, ":t") or "[No Name]"
+      print(string.format("%d: %s:%d:%d", i, filename, haken.lnum, haken.col))
+    end
   end
   return hakens
 end
 
 -- Setup function
----@param args? { column_sensitive?: boolean }
+---@param args? Config
 function M.setup(args)
   args = args or {}
-  M.column_sensitive = args.column_sensitive
+  M.config = args
+
+  -- clear on new window automatically
+  if M.config.clear_on_new_window then
+    vim.api.nvim_create_autocmd("WinNew", {
+      pattern = "*",
+      callback = function()
+        vim.cmd("clearjumps")
+        M.clear_hakens(vim.api.nvim_get_current_win())
+        print("Manual jumplist entries cleared on new window")
+      end,
+    })
+  end
 
   vim.api.nvim_create_user_command("AddHaken", M.add_haken, {
     desc = "Add a haken",
@@ -164,11 +201,11 @@ function M.setup(args)
     desc = "Show all manual jumplist entries",
   })
 
-  vim.api.nvim_create_user_command("ClearHakens", function()
+  vim.api.nvim_create_user_command("ClearAllHakens", function()
     M.clear_hakens()
-    print("Manual jumplist entries cleared")
+    print("Cleared hakens in all windows")
   end, {
-    desc = "Clear manual jumplist entries tracking",
+    desc = "Clear Hakens in all windows",
   })
 end
 
