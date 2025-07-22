@@ -36,6 +36,11 @@ local function find_last_haken_index(win_id)
   local latest_haken_index = nil
   ---@type table<string, integer>
   local jump_hashtable = {}
+  -- If using not using stack behavior for the jumplist, ignore current_idx for connecting hakens
+  if not vim.o.jumpoptions:match("stack") then
+    current_jump_idx = #jumps
+  end
+
 
   for i = current_jump_idx, 1, -1 do
     local jump = jumps[i]
