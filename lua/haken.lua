@@ -2,13 +2,15 @@
 local core = require("haken.core")
 
 ---@class Config
----@field column_sensitive boolean
----@field clear_jumplists boolean
----@field clear_on_new_window? boolean
+---@field column_sensitive? boolean
+---@field clear_jumps_on_startup? boolean
+---@field clear_jumps_on_new_window? boolean
+---@field silent? boolean
 local config = {
   column_sensitive = false,
-  clear_jumplists = false,
-  clear_on_new_window = false,
+  clear_jumps_on_startup = false,
+  clear_jumps_on_new_window = false,
+  silent = false,
 }
 
 ---@class Haken
@@ -24,7 +26,7 @@ M.setup = function(args)
   -- reset jumplist on startup
   args = args or {}
 
-  if args.clear_jumplists == true then
+  if args.clear_jumps_on_startup == true then
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
         vim.cmd("bufdo clearjumps")
@@ -39,5 +41,6 @@ end
 M.add_haken = core.add_haken
 M.clear_hakens = core.clear_hakens
 M.show_hakens = core.show_hakens
+M.prune_jumps = core.prune_jumps
 
 return M
