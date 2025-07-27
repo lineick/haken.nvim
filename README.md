@@ -7,11 +7,15 @@ A Neovim plugin for **easy jumplist management**. Add custom "hakens" (jump poin
 
 ---
 
+> [!NOTE]
+> The Hakens always connect between each other. A new haken will connect to the last set haken. This behavior does not adapt to `vim.o.jumpoptions="stack"`.
+
 ## Features
 
-- **Manual Jump Points ("Hakens")**: Mark custom positions in the jumplist using a command or keybinding. (`<BS>` is recommended)
+- **Manual Jump Points ("Hakens")**: Mark custom positions in the jumplist using a command or keybinding. (I like backspace `<BS>` or enter `<CR>` in normal mode)
 - **Smart Cleanup**: When you add a new haken, entries *after* your last haken are automatically pruned from the jumplist connecting your last haken to your current one.
-- **Built-in Commands**: Inspect, clear, and manage hakens with `:AddHaken`, `:ShowHakens`, and `:ClearHakens`.
+- **Built-in Commands**: Inspect, clear, and manage hakens with `:AddHaken`, `:ShowHakens`, and `:ClearAllHakens` (clear hakens for all windows).
+- **Window-specific**: Your hakens and jumplists are managed per window.
 
 ---
 
@@ -28,12 +32,12 @@ A Neovim plugin for **easy jumplist management**. Add custom "hakens" (jump poin
 ```lua
 {
   "lineick/haken.nvim",
-  config = function()
-    require("haken").setup({
-      -- column_sensitive = false, -- update haken even when just the column changed
-      -- clear_jumplist = true,    -- clear jumplist on VimEnter (start of your session)
-    })
-  end,
+  opts = {
+    -- column_sensitive = false, -- update haken even when just the column changed
+    -- clear_jumps_on_startup = false, -- clear jumplist on startup (hakens are always cleared on startup)
+    -- clear_jumps_on_new_window = false, -- clear jumplist for each new window
+    -- silent = false, -- deactivates prints into the statusbar when adding hakens etc.
+  },
 }
 ```
 
@@ -49,80 +53,75 @@ use {
 ```
 
 
-## Configuration
+## Example Configuration
 
 Call `require("haken").setup()` with these options (all optional):
 
 ```lua
 require("haken").setup({
-  column_sensitive = false, -- Whether hakens are unique per column (default: false)
-  clear_jumplist = true,    -- Whether to clear the jumplist on VimEnter (default: true)
+  column_sensitive = true, -- update haken even when just the column changed
+  clear_jumps_on_startup = true, -- clear jumplist on startup (hakens are always cleared on startup)
+  clear_jumps_on_new_window = false, -- clear jumplist for each new window
+  silent = false, -- deactivates prints into the statusbar when adding hakens etc.
 })
 ```
 
-**Note:**
-Keybindings for adding hakens must be set up separately, or by mapping to `:AddHaken`.
-I recommend to setting `require("haken").add_haken` to `<BR>` in normal mode.
+Add keybindings for adding hakens and optionally for pruning the jumplist.
+
+```lua
+vim.keymap.set('n', '<BS>', haken.add_haken, {
+  desc = "Add haken",
+  silent = true,
+})
+
+vim.keymap.set('n', '<leader><BS>', haken.prune_jumps, {
+  desc = "Prune jumps to current position in jumplist",
+  silent = true,
+})
+```
 
 ---
 
-## Usage
-
-### Basic Workflow
+## Vim Commands
 
 * **Add a haken:**
-  Run `:AddHaken` or map a key to this command (e.g., `<BS>` or any of your choice).
+  Run `:AddHaken` to add a haken (calls `haken.add_haken()`) under the hood.
 * **See your hakens:**
   Run `:ShowHakens` to print the list of currently tracked hakens.
 * **Clear hakens:**
-  Run `:ClearHakens` to clear manual tracking (does *not* alter the actual jumplist, just the haken marks).
+  Run `:ClearAllHakens` to clear hakens in all windows (does *not* alter the actual jumplist, just the haken marks).
 * **Navigation:**
   Use Vim's default `<C-o>` and `<C-i>` for jumplist navigation. Haken will keep the jumplist clean as you add new marks.
 
 ---
 
-### Example Mapping
-
-You can map `<BS>` (Backspace) to add a haken:
-
-```lua
-vim.keymap.set("n", "<BS>", function() require("haken").add_haken() end, { desc = "Add haken" })
-```
-
-Or use the `:AddHaken` command directly.
-
----
-
-### Commands
-
-* `:AddHaken` — Add a haken at the current position.
-* `:ShowHakens` — Show all currently tracked hakens in the jumplist.
-* `:ClearHakens` — Clear all hakens from manual tracking (does *not* affect Neovim's actual jumplist).
-
----
-
-### How It Works
+## How It Works
 
 1. When you add a haken, Haken checks if this position is different from your last haken. If no previous haken exists, it just adds the haken as a jump, without pruning the jumplist.
-2. If another haken is in the jumplist, it prunes all jumplist entries after your last haken, then adds the new haken for the current position to the jumplist.
-3. This ensures your jumplist contains only the entries you care about (your hakens), plus any automatic jumps since your last haken.
+2. If a previous haken is in the jumplist, it prunes all jumplist entries between the previous haken and the haken you set now, letting you jump with only one `<C-o>`.
+3. This ensures your jumplist contains only the entries you care about (your hakens), plus any automatic jumps since your last haken and before your first haken.
 
 ---
 
-## Example Workflow
+### Example Workflow
+
+![](./doc/example_dark.png#gh-dark-mode-only)
+![](./doc/example_light.png#gh-light-mode-only)
 
 ```
-1. Open file A, line 10 -> :AddHaken (haken 1)
-2. Move around, create automatic jumps
-3. Go to file B, line 50 -> :AddHaken (haken 2, cleans up after haken 1)
-4. More navigation...
-5. Go to file C, line 100 -> :AddHaken (haken 3, cleans up after haken 2)
+1. make a jump (e.g. with `}`)
+2. move a bit further -> :AddHaken (haken 1)
+3. make a jump (or multiple, for simplicity in the graphic its just one)
+3. move further -> :AddHaken (haken 2)
+4. move back once (`<C-o>`) to get to haken 1
+5. move somewhere else (can of course also be other buffers) -> :AddHaken (haken 3)
+6. jump again (e.g. `}`)
+7. move back (`<C-o`) three times to get to haken 1
+8. jump somewhere else
+9. move a bit further -> :AddHaken (haken 4)
 
-Your jumplist now only contains 3 jumps!
-
-6. Navigate further (jumps etc.)
-
-Your jumplist contains the first 3 haken (manual jump entries) and the standard jumps added by step 6!
+You now have only 5 entries in your jumplist (4 hakens and the initial jump).
+Jumping back will take you over your previous hakens one by one.
 ```
 
 ---
