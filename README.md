@@ -32,14 +32,12 @@ A Neovim plugin for **easy jumplist management**. Add custom "hakens" (jump poin
 ```lua
 {
   "lineick/haken.nvim",
-  config = function()
-    require("haken").setup({
-      -- column_sensitive = false, -- update haken even when just the column changed
-      -- clear_jumps_on_startup = false, -- clear jumplist on startup (hakens are always cleared on startup)
-      -- clear_jumps_on_new_window = false, -- clear jumplist for each new window
-      -- silent = false, -- deactivates prints into the statusbar when adding hakens etc.
-    })
-  end,
+  opts = {
+    -- column_sensitive = false, -- update haken even when just the column changed
+    -- clear_jumps_on_startup = false, -- clear jumplist on startup (hakens are always cleared on startup)
+    -- clear_jumps_on_new_window = false, -- clear jumplist for each new window
+    -- silent = false, -- deactivates prints into the statusbar when adding hakens etc.
+  },
 }
 ```
 
