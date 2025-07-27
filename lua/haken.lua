@@ -42,6 +42,5 @@ M.add_haken = core.add_haken
 M.clear_hakens = core.clear_hakens
 M.show_hakens = core.show_hakens
 M.prune_jumps = core.prune_jumps
-M.set_recent_haken = core.set_recent_haken
 
 return M
