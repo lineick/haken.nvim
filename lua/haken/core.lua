@@ -49,6 +49,9 @@ local function find_last_haken_index(win_id)
     -- Check if this haken exists in the jumplist
     if jump_hashtable[key] then
       if not latest_haken_index then
+        -- If this is the first haken found, set it as the latest
+        latest_haken_index = jump_hashtable[key]
+      elseif latest_haken_index < jump_hashtable[key] then
         latest_haken_index = jump_hashtable[key]
       end
     else

@@ -1,31 +1,47 @@
-for _, cfg in ipairs({
+local configs = {
   { name = "default", opts = {} },
-  { name = "column_sensitive=true", opts = {
-    column_sensitive = true,
-    clear_jumps_on_startup = false,
-    clear_jumps_on_new_window = false,
-    silent = false,
-  } },
-  { name = "clear_jumps_on_new_window=true", opts = {
-    clear_jumps_on_new_window = true,
-  } },
-  { name = "clear_jumps_on_startup=true", opts = {
-    clear_jumps_on_startup = true,
-  } },
-  { name = "all options true", opts = {
-    column_sensitive = true,
-    clear_jumps_on_startup = true,
-    clear_jumps_on_new_window = true,
-    silent = true,
-  } },
-}) do
-  describe(("haken (%s)"):format(cfg.name), function()
+  {
+    name = "column_sensitive=true",
+    opts = {
+      column_sensitive = true,
+      clear_jumps_on_startup = false,
+      clear_jumps_on_new_window = false,
+      silent = false,
+    }
+  },
+  {
+    name = "clear_jumps_on_new_window=true",
+    opts = {
+      clear_jumps_on_new_window = true,
+    }
+  },
+  {
+    name = "clear_jumps_on_startup=true",
+    opts = {
+      clear_jumps_on_startup = true,
+    }
+  },
+  {
+    name = "all options true",
+    opts = {
+      column_sensitive = true,
+      clear_jumps_on_startup = true,
+      clear_jumps_on_new_window = true,
+      silent = true,
+    }
+  },
+}
+
+for _, cfg in ipairs(configs) do
+  describe(('haken (%s)'):format(cfg.name), function()
+    -- one extra line in your current before_each:
     local haken
     local core
     local utils
     local test_utils
 
     before_each(function()
+      vim.o.jumpoptions = '' -- default value
       -- Clear any existing state
       package.loaded['haken'] = nil
       package.loaded['haken.core'] = nil
@@ -36,6 +52,8 @@ for _, cfg in ipairs({
       core = require('haken.core')
       utils = require('haken.utils')
       test_utils = require('tests.haken.utils')
+
+      haken.setup(cfg.opts)
 
       -- Clear any existing manual entries (haken)
       core.clear_hakens()
@@ -200,10 +218,6 @@ for _, cfg in ipairs({
         local newest_pos = utils.get_current_position()
         test_utils.do_actions("o")
 
-        -- should be back at the first haken
-        print("expected", vim.inspect(pos))
-        print("actual", vim.inspect(utils.get_current_position()))
-
         assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
 
         test_utils.do_actions("i")
@@ -222,6 +236,136 @@ for _, cfg in ipairs({
         test_utils.do_actions("o")
 
         assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+      end)
+      it("should prune", function()
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+        local pos = utils.get_current_position()
+        test_utils.do_actions("H")
+        test_utils.do_actions("}")
+        test_utils.do_actions("}j")
+        test_utils.do_actions("lll")
+        test_utils.do_actions("H")
+        test_utils.do_actions("o")
+        haken.prune_jumps()
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("}")
+        new_pos = utils.get_current_position()
+        test_utils.do_actions("o")
+
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("i")
+        assert.is_true(utils.positions_equal(utils.get_current_position(), new_pos))
+      end)
+      it("should connect branches with hakens", function()
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+
+        test_utils.do_actions("}}")
+        test_utils.do_actions("H") -- set haken before branch
+
+        local pos = utils.get_current_position()
+
+        test_utils.do_actions("}") -- first branch
+        test_utils.do_actions("H") -- haken in first branch
+
+        local first_branch_pos = utils.get_current_position()
+
+        test_utils.do_actions("o")
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("{") -- second branch
+        test_utils.do_actions("H") -- haken in second branch
+
+        local second_branch_pos = utils.get_current_position()
+
+        test_utils.do_actions("o") -- should go to root
+        print("pos", vim.inspect(pos))
+        print("first branch pos", vim.inspect(first_branch_pos))
+        print("second branch pos", vim.inspect(second_branch_pos))
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("o") -- should go to first branch haken
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(utils.positions_equal(utils.get_current_position(), first_branch_pos))
+        test_utils.do_actions("i") -- should go to second branch haken
+        test_utils.do_actions("i")
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(utils.positions_equal(utils.get_current_position(), second_branch_pos))
+      end)
+      -- ############## STACK SPECIFIC TESTS! ##############
+      it("should not remove jumplist if first haken is added (stack)", function()
+        vim.o.jumpoptions = 'stack'
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+
+        test_utils.do_actions("}}}{")
+        local pos = utils.get_current_position()
+        test_utils.do_actions("}") -- this will be overwritten by the haken
+        test_utils.do_actions("j")
+        test_utils.do_actions("lll")
+        test_utils.do_actions("H")
+        test_utils.do_actions("o")
+
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+      end)
+      it("should connect hakens if new haken is added (stack)", function()
+        vim.o.jumpoptions = 'stack'
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+        local pos = utils.get_current_position()
+
+        test_utils.do_actions("H")
+        test_utils.do_actions("}}}{}j")
+        test_utils.do_actions("lll")
+        test_utils.do_actions("H")
+        local newest_pos = utils.get_current_position()
+        test_utils.do_actions("o")
+
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+
+        test_utils.do_actions("i")
+        assert.is_true(utils.positions_equal(utils.get_current_position(), newest_pos))
+      end)
+      it("should work for hakens in deleted positions (stack)", function()
+        vim.o.jumpoptions = 'stack'
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+        test_utils.do_actions("}")
+        local pos = utils.get_current_position()
+        test_utils.do_actions("H")
+        test_utils.do_actions("d") -- delete line of haken
+        test_utils.do_actions("}")
+        test_utils.do_actions("H")
+        test_utils.do_actions("o")
+
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+      end)
+      it("should prune (stack)", function()
+        vim.o.jumpoptions = 'stack'
+        -- position
+        local win1 = 0
+        vim.api.nvim_win_set_cursor(win1, { 1, 0 })
+        local pos = utils.get_current_position()
+        test_utils.do_actions("H")
+        test_utils.do_actions("}")
+        test_utils.do_actions("}j")
+        test_utils.do_actions("lll")
+        test_utils.do_actions("H")
+        test_utils.do_actions("o")
+        haken.prune_jumps()
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("}")
+        new_pos = utils.get_current_position()
+        test_utils.do_actions("o")
+
+        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("i")
+        assert.is_true(utils.positions_equal(utils.get_current_position(), new_pos))
       end)
     end)
   end)
