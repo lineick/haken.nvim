@@ -117,7 +117,7 @@ vim.keymap.set('n', '<leader><BS>', haken.prune_jumps, {
 5. move somewhere else (can of course also be other buffers) -> :AddHaken (haken 3)
 6. jump again (e.g. `}`)
 7. move back (`<C-o`) three times to get to haken 1
-8. move somewhere else
+8. jump somewhere else
 9. move a bit further -> :AddHaken (haken 4)
 
 You now have only 5 entries in your jumplist (4 hakens and the initial jump).
