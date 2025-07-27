@@ -3,6 +3,7 @@
 ---@class HakenTestUtils
 local M = {}
 local core = require("haken.core")
+local utils = require("haken.utils")
 
 ---@param repeat_n_times integer repeat the pattern this many times
 ---@return string[]
@@ -76,6 +77,24 @@ function M.do_actions(actions)
       error("Unknown action: " .. c)
     end
   end
+end
+
+---Wraps equal_positions to provide a debug message for failed comparisons.
+---@param pos1 HakenPosition
+---@param pos2 HakenPosition
+---@param ignore_col boolean?
+---@return boolean equal
+function M.positions_equal(pos1, pos2, ignore_col)
+  local equal = utils.positions_equal(pos1, pos2, ignore_col)
+  if not equal then
+    print(string.format(
+      "Positions not equal: %s vs %s (ignore_col: %s)",
+      utils.position_to_key(pos1),
+      utils.position_to_key(pos2),
+      tostring(ignore_col)
+    ))
+  end
+  return equal
 end
 
 return M

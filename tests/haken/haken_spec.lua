@@ -203,7 +203,7 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
       end)
       it("should connect hakens if new haken is added", function()
         -- position
@@ -218,10 +218,10 @@ for _, cfg in ipairs(configs) do
         local newest_pos = utils.get_current_position()
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
 
         test_utils.do_actions("i")
-        assert.is_true(utils.positions_equal(utils.get_current_position(), newest_pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), newest_pos))
       end)
       it("should work for hakens in deleted positions", function()
         -- position
@@ -235,7 +235,7 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
       end)
       it("should prune", function()
         -- position
@@ -249,14 +249,14 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
         haken.prune_jumps()
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
         test_utils.do_actions("}")
         new_pos = utils.get_current_position()
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
         test_utils.do_actions("i")
-        assert.is_true(utils.positions_equal(utils.get_current_position(), new_pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), new_pos))
       end)
       it("should connect branches with hakens", function()
         -- position
@@ -274,25 +274,44 @@ for _, cfg in ipairs(configs) do
         local first_branch_pos = utils.get_current_position()
 
         test_utils.do_actions("o")
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
         test_utils.do_actions("{") -- second branch
         test_utils.do_actions("H") -- haken in second branch
 
         local second_branch_pos = utils.get_current_position()
 
-        test_utils.do_actions("o") -- should go to root
+        test_utils.do_actions("o") -- should go to first branch haken
         print("pos", vim.inspect(pos))
         print("first branch pos", vim.inspect(first_branch_pos))
         print("second branch pos", vim.inspect(second_branch_pos))
         print("current pos", vim.inspect(utils.get_current_position()))
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), first_branch_pos))
+        test_utils.do_actions("o") -- should go to first root
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
+        test_utils.do_actions("i")
+        test_utils.do_actions("i") -- should go to second branch haken
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), second_branch_pos))
+        test_utils.do_actions("oo") -- should go to root
+        print("after o pos", vim.inspect(utils.get_current_position()))
+        vim.api.nvim_win_set_cursor(win1, { 100, 0 })
+        test_utils.do_actions("}") -- branch off into 3 branch
+        test_utils.do_actions("H") -- haken in third branch
+        local third_branch_pos = utils.get_current_position()
+        print("third branch pos", vim.inspect(third_branch_pos))
+        test_utils.do_actions("o") -- should go to root haken
+        test_utils.do_actions("ii") -- should go to third branch haken (second i should not do anything)
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), third_branch_pos))
+        test_utils.do_actions("o") -- should go to second branch haken
+        print("current pos", vim.inspect(utils.get_current_position()))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), second_branch_pos))
         test_utils.do_actions("o") -- should go to first branch haken
         print("current pos", vim.inspect(utils.get_current_position()))
-        assert.is_true(utils.positions_equal(utils.get_current_position(), first_branch_pos))
-        test_utils.do_actions("i") -- should go to second branch haken
-        test_utils.do_actions("i")
-        print("current pos", vim.inspect(utils.get_current_position()))
-        assert.is_true(utils.positions_equal(utils.get_current_position(), second_branch_pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), first_branch_pos))
+        test_utils.do_actions("o") -- should go to root haken
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
+
       end)
       -- ############## STACK SPECIFIC TESTS! ##############
       it("should not remove jumplist if first haken is added (stack)", function()
@@ -309,7 +328,7 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
       end)
       it("should connect hakens if new haken is added (stack)", function()
         vim.o.jumpoptions = 'stack'
@@ -325,10 +344,10 @@ for _, cfg in ipairs(configs) do
         local newest_pos = utils.get_current_position()
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
 
         test_utils.do_actions("i")
-        assert.is_true(utils.positions_equal(utils.get_current_position(), newest_pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), newest_pos))
       end)
       it("should work for hakens in deleted positions (stack)", function()
         vim.o.jumpoptions = 'stack'
@@ -343,7 +362,7 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
       end)
       it("should prune (stack)", function()
         vim.o.jumpoptions = 'stack'
@@ -358,14 +377,14 @@ for _, cfg in ipairs(configs) do
         test_utils.do_actions("H")
         test_utils.do_actions("o")
         haken.prune_jumps()
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
         test_utils.do_actions("}")
         new_pos = utils.get_current_position()
         test_utils.do_actions("o")
 
-        assert.is_true(utils.positions_equal(utils.get_current_position(), pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), pos))
         test_utils.do_actions("i")
-        assert.is_true(utils.positions_equal(utils.get_current_position(), new_pos))
+        assert.is_true(test_utils.positions_equal(utils.get_current_position(), new_pos))
       end)
     end)
   end)
