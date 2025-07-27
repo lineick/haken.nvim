@@ -152,11 +152,3 @@ If you need even more advanced features, the core API is available in `require("
 Contributions are welcome!
 Open issues, file pull requests, or share suggestions for new features.
 
----
-
-## License
-
-MIT License — see LICENSE file for details.
-
-```
-
