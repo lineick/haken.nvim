@@ -95,12 +95,24 @@ end
 
 -- Prune the jumplist to the current index
 function M.prune_jumps()
+  local view_state = vim.fn.winsaveview()
   local _, current_index = utils.get_jumplist()
   remove_entries_after_index(current_index)
-  -- clean up hakens
+  -- write current jumps
+  local jumps, _ = utils.get_jumplist()
   local win_id = vim.api.nvim_get_current_win()
-  M.clean_hakens(win_id, current_index)
+  jumplist_at_last_haken[win_id] = jumps
+  -- Add current position to jumplist
   local current_pos = utils.get_current_position()
+  table.insert(jumplist_at_last_haken[win_id], {
+    bufnr = current_pos.bufnr,
+    lnum = current_pos.lnum,
+    col = current_pos.col,
+  })
+  set_jumplist(jumplist_at_last_haken[win_id])
+  -- clean up hakens
+  M.clean_hakens(win_id, current_index)
+  vim.fn.winrestview(view_state)
   local filename = current_pos.filename ~= "" and vim.fn.fnamemodify(current_pos.filename, ":t") or "[No Name]"
   utils.print(
     "Jumplist pruned, previous jump at " .. filename .. ":" .. current_pos.lnum .. ":" .. current_pos.col,
