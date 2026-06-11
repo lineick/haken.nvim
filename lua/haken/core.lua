@@ -16,7 +16,8 @@ local hakens = {}
 ---@param cutoff_index? integer
 function M.clean_hakens(win_id, cutoff_index)
   local jumps, current_index = utils.get_jumplist()
-  cutoff_index = cutoff_index or current_index
+  -- a passed cutoff can exceed the jumplist if it shrank since (deduped or dropped entries)
+  cutoff_index = math.min(cutoff_index or current_index, #jumps)
 
   if not hakens[win_id] then
     return
@@ -46,7 +47,9 @@ local function set_jumplist(jumplist)
   for _, jump in ipairs(jumplist) do
     if vim.fn.bufexists(jump.bufnr) == 1 then
       vim.api.nvim_set_current_buf(jump.bufnr)
-      vim.api.nvim_win_set_cursor(0, { jump.lnum, jump.col })
+      -- saved positions can be stale after edits, clamp to existing lines
+      local lnum = math.max(1, math.min(jump.lnum, vim.api.nvim_buf_line_count(jump.bufnr)))
+      vim.api.nvim_win_set_cursor(0, { lnum, jump.col })
       vim.cmd("normal! m`")
     end
   end
@@ -74,23 +77,7 @@ local function remove_entries_after_index(target_index)
       table.insert(entries_to_keep, jumps[i])
     end
   end
-  -- Clear and rebuild jumplist
-  vim.cmd("clearjumps")
-
-  local current_buf = vim.api.nvim_get_current_buf()
-  local original_pos = vim.api.nvim_win_get_cursor(0)
-
-  for _, jump in ipairs(entries_to_keep) do
-    if vim.fn.bufexists(jump.bufnr) == 1 then
-      vim.api.nvim_set_current_buf(jump.bufnr)
-      vim.api.nvim_win_set_cursor(0, { jump.lnum, jump.col })
-      vim.cmd("normal! m`")
-    end
-  end
-
-  -- Return to original position
-  vim.api.nvim_set_current_buf(current_buf)
-  vim.api.nvim_win_set_cursor(0, original_pos)
+  set_jumplist(entries_to_keep)
 end
 
 -- Prune the jumplist to the current index
