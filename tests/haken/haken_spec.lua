@@ -387,5 +387,63 @@ for _, cfg in ipairs(configs) do
         assert.is_true(test_utils.positions_equal(utils.get_current_position(), new_pos))
       end)
     end)
+    describe("stale positions", function()
+      before_each(function()
+        haken.setup(cfg.opts)
+      end)
+
+      it("should add haken when cached jump line no longer exists", function()
+        local text = test_utils.generate_foo_bar_lines(100)
+        test_utils.setup_test_buffer(text)
+        vim.api.nvim_win_set_cursor(0, { 90, 0 })
+        core.add_haken()
+
+        -- shrink buffer so the cached haken line is gone
+        vim.api.nvim_buf_set_lines(0, 10, -1, false, {})
+        vim.api.nvim_win_set_cursor(0, { 5, 0 })
+
+        assert.has_no.errors(function()
+          core.add_haken()
+        end)
+
+        local win_hakens = core.show_hakens()[vim.api.nvim_get_current_win()]
+        assert.equals(2, #win_hakens)
+      end)
+
+      it("should prune when cached jump line no longer exists", function()
+        local text = test_utils.generate_foo_bar_lines(100)
+        test_utils.setup_test_buffer(text)
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        test_utils.do_actions("}}")
+        vim.api.nvim_win_set_cursor(0, { 90, 0 })
+        core.add_haken()
+
+        vim.api.nvim_buf_set_lines(0, 10, -1, false, {})
+        vim.api.nvim_win_set_cursor(0, { 5, 0 })
+
+        assert.has_no.errors(function()
+          haken.prune_jumps()
+        end)
+      end)
+
+      it("should prune after a jumped-to buffer is wiped", function()
+        local text = test_utils.generate_foo_bar_lines(50)
+        test_utils.setup_test_buffer(text)
+        local first_buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_win_set_cursor(0, { 1, 0 })
+        test_utils.do_actions("}}")
+        core.add_haken()
+
+        test_utils.setup_test_buffer(text)
+        local second_buf = vim.api.nvim_get_current_buf()
+        test_utils.do_actions("}}")
+        vim.api.nvim_set_current_buf(first_buf)
+        vim.cmd("bwipeout! " .. second_buf)
+
+        assert.has_no.errors(function()
+          haken.prune_jumps()
+        end)
+      end)
+    end)
   end)
 end
